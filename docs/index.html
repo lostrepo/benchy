@@ -159,9 +159,9 @@ nav li.selected {
   background: #f0f0f0;
 }
 </style>
-<script defer="defer" src="/highcharts.js"></script>
-<script defer="defer" src="/uPlot.iife.min.js"></script>
-<script src="/config.js"></script>
+<script defer="defer" src="highcharts.js"></script>
+<script defer="defer" src="uPlot.iife.min.js"></script>
+<script src="config.js"></script>
 <script type="text/javascript">
 const noop = () => {}
 let current = max // current benchmark run
@@ -717,7 +717,7 @@ function displayFilters () {
 }
 
 function getBenchmark (name) {
-	return fetch(`/${current}/${name}.json`)
+	return fetch(`${current}/${name}.json`)
 		.then(response => response.json())
     .then(results => {
       results.config.config.id = current
