@@ -1,1 +1,1 @@
-const max = 1
+const max = 2
