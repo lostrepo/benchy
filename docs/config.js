@@ -1,0 +1,1 @@
+const max = 1

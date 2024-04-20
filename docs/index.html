@@ -1,0 +1,795 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<html>
+<head>
+<title>benchy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html {
+  overflow:   scroll;
+}
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent; /* make scrollbar transparent */
+}
+body {
+  background-color: #c0c0c0;
+  font-family: monospace;
+}
+div#control {
+  margin-bottom: 16px;
+  font-size: 14pt;
+}
+select, input {
+  font-family: monospace;
+}
+canvas {
+  display: inline-block;
+  background-color: white;
+}
+div.summary {
+  margin-bottom: 0px;
+}
+div.sparks {
+  margin-bottom: 0px;
+}
+div.thru {
+  padding: 8px;
+  border-radius: 8px;
+  background-color: white;
+  width: 584px;
+  height: 300px;
+  margin-bottom: 4px;
+  margin-right: 4px;
+  display: inline-block;
+}
+div.lat {
+  padding: 8px;
+  border-radius: 8px;
+  background-color: white;
+  width: 1168px;
+  height: 300px;
+  margin-bottom: 4px;
+  margin-right: 4px;
+  display: inline-block;
+}
+pre {
+  font-size: 7pt;
+  background-color: white;
+}
+h1 {
+  font-size: 14pt;
+  background-color: #a0a0a0;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
+h1.suite {
+  background-color: green;
+  color: white;
+}
+div.container {
+  display: inline-block;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: #f0f0f0;
+}
+table {
+  font-family: monospace;
+  border-spacing: 0px;
+  display: inline-block;
+  margin-right: 4px;
+  margin-bottom: 8px;
+  vertical-align: top;
+  padding: 8px;
+  border-radius: 8px;
+}
+table.normal {
+  width: 100%;
+  background-color: #f0f0f0;
+  padding: 0px;
+  border-radius: 0px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+}
+table.view {
+  background-color: white;
+}
+table thead tr {
+  font-weight: bold;
+  background-color: #f0f0f0
+}
+table tbody {
+  background-color: white;
+}
+table tbody tr {
+  border-bottom: 1px solid #c0c0c0;
+}
+table tbody td {
+  padding: 0px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #c0c0c0;
+  padding-left: 8px;
+}
+table tbody td.nopadding {
+  padding: 0px;
+}
+table tbody tr td.head {
+  border-bottom: 1px solid #c0c0c0;
+  font-weight: bold;
+  background-color: #f0f0f0;
+  padding-right: 8px;
+  padding-left: 8px;
+}
+nav {
+  padding: 8px;
+}
+nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+nav li {
+  display: inline;
+  border: solid;
+  border-width: 4px 4px 0 4px;
+  font-size: 14pt;
+  background-color: #a0a0a0;
+  color: #d0d0d0;
+  margin: 0 2px 0 0;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  padding: 8px;
+}
+nav li:hover {
+  background-color: #f0f0f0;
+}
+nav li a {
+  color: black;
+  font-weight: bold;
+  text-decoration: none;
+}
+nav li.category {
+  background: #a0a0a0;
+}
+nav li.suite {
+  background: #edca89;
+}
+nav li.selected {
+  background: #f0f0f0;
+}
+</style>
+<script defer="defer" src="/highcharts.js"></script>
+<script defer="defer" src="/uPlot.iife.min.js"></script>
+<script src="/config.js"></script>
+<script type="text/javascript">
+const noop = () => {}
+let current = max // current benchmark run
+let currentTab // selected tab
+let selectedSuite = ''
+let selectedCategory = ''
+
+const filters = []
+const frameworks = {}
+
+function applyFilters (run) {
+  return !filters.includes(run.name)
+}
+
+class Colors {
+  #names = {}
+  #next = 0
+
+  constructor () {
+    this.colors = [
+      '#a6cee3',
+      '#2f98b4',
+      '#b2df8a',
+      '#33a02c',
+      '#fdbf6f',
+      '#fb9a99',
+      '#e31a1c',
+      '#ff7f00',
+      '#cab2d6',
+      '#ce3d9a',
+      '#ffff99',
+      '#b15928'
+    ]
+  }
+
+  color (name) {
+    if (!this.#names[name]) {
+      this.#names[name] = this.colors[this.#next++]
+      if (this.#next === this.colors.length) this.#next = 0
+    }
+    return this.#names[name]
+  }
+}
+
+const colors = new Colors()
+
+function gaugeHtml (percent, value) {
+  return `<div style="width: 100%; color: black;">
+  <div style="padding: 0px; background-color: #fdbf6f; text-align: 
+  right; font-weight: bold; width: ${Math.ceil(percent)}%">
+  ${value}
+  </div>
+  </div>`
+}
+
+function sparkline (data, max = stats.max(data), stroke = '#03a9f4', 
+  fill = '#b3e5fc') {
+  const hide = { show: false }
+  const opts = { 
+    width: 250, height: 64, cursor: hide, select: hide, legend: hide, 
+    scales: { x: { time: false }, y: { time: false, range: [0, 1] } }, 
+    axes: [ hide, hide ], series: [ {}, { stroke, fill }]
+  }
+  const d = [[], []]
+  for (let i = 0; i < data.length; i++) {
+    d[0][i] = i
+    d[1][i] = (data[i] / max)
+  }
+  let u = new uPlot(opts, d)
+  return u.root.querySelector('canvas')
+}
+
+function createThroughputChart(container, name, title, subtitle, results, 
+  bgcolor = 'white', className = 'chart', type = 'bar') {
+  const div = document.createElement('div')
+  div.className = className
+  div.id = name
+  container.appendChild(div)
+  const config = {
+    chart: {
+      backgroundColor: bgcolor,
+      borderWidth: 0,
+      style: {
+        fontFamily: 'monospace'
+      }
+    },
+    title: { text: title },
+    legend: {
+      symbolHeight: 6,
+    },
+    credits: {
+      enabled: false
+    },
+    exporting: {
+      enabled: false
+    },
+    xAxis: {
+      labels: { enabled: false },
+    },
+    yAxis: {
+      labels: { enabled: false },
+      minorTicks: true,
+      title: { enabled: false },
+    },
+    plotOptions: {
+      series: {
+        pointPadding: 0,
+        groupPadding: .1
+      }
+    },
+    series: results.map(v => ({
+      type,
+      color: colors.color(v.name),
+      dataLabels: [{
+        enabled: true,
+        borderRadius: 0,
+        color: 'black',
+        style: { textOutline: false },
+        borderWidth: 0,
+      }],
+      ...v
+    }))
+  }
+  if (subtitle) config.subtitle = { text: subtitle }
+  Highcharts.chart(name, config)
+}
+
+function createLatencyChart(container, name, title, subtitle, results, 
+  bgcolor = 'white', className = 'chart', type = 'bar') {
+  const div = document.createElement('div')
+  div.className = className
+  div.id = name
+  container.appendChild(div)
+  const config = {
+    chart: {
+      backgroundColor: bgcolor,
+      borderWidth: 0,
+      style: {
+        fontFamily: 'monospace'
+      }
+    },
+    title: { text: title },
+    xAxis: {
+      minorTicks: true,
+      minorTickWidth: 1,
+      title: { text: 'percentile' }
+    },
+    credits: {
+      enabled: false
+    },
+    legend: {
+      symbolHeight: 6,
+    },
+    exporting: {
+      enabled: false
+    },
+    yAxis: {
+      minorTickInterval: 0.1,
+      title: { text: 'latency (μs)' },
+      alignTicks: false,
+      endOnTick: false
+    },
+    plotOptions: {
+      series: {
+        groupPadding: 0,
+        pointPadding: 0,
+        borderWidth: 0
+      }
+    },
+    series: results.map(result => {
+      const type = 'area'
+      const { name, data } = result
+      return {
+        color: colors.color(getRuntimeFromName(name)), name, data, type
+      }
+    })
+  }
+  if (subtitle) config.subtitle = { text: subtitle }
+  Highcharts.chart(name, config)
+}
+
+function createTable (cols) {
+  const table = document.createElement('table')
+  table.className = 'normal'
+  const head = table.createTHead()
+  const body = table.createTBody()
+  const newRow = head.insertRow(-1)
+  for (const col of cols) {
+    const newCell = newRow.insertCell(-1)
+    newCell.style.cursor = 'pointer'
+    const newText = document.createTextNode(col)
+    newCell.appendChild(newText)
+  }
+  return {
+    table,
+    addRow: (values) => {
+      const newRow = body.insertRow(-1)
+      for (const val of values) {
+        const newCell = newRow.insertCell(-1)
+        const newText = document.createTextNode(val)
+        newCell.appendChild(newText)
+      }
+      return table
+    }
+  }
+}
+
+function createView () {
+  const table = document.createElement('table')
+  table.className = 'view'
+  const body = table.createTBody()
+  return {
+    table,
+    addRow: (key, value, hcolor, ccolor) => {
+      const newRow = body.insertRow(-1)
+      let newCell = newRow.insertCell(-1)
+      if (key.constructor.name === 'String') {
+        let newText = document.createTextNode(key)
+        newCell.className = 'head'
+        newCell.appendChild(newText)
+        if (hcolor) newCell.style.backgroundColor = hcolor
+        newCell = newRow.insertCell(-1)
+        if (value === null || value === undefined) {
+          newText = document.createTextNode('<null>')
+          newCell.appendChild(newText)
+        } else if (value.constructor.name === 'String' || 
+          value.constructor.name === 'Number' || 
+          value.constructor.name === 'Boolean') {
+          newText = document.createTextNode(value)
+          newCell.appendChild(newText)
+        } else if (value.constructor.name === 'Array') {
+          newText = document.createTextNode(value.join(', '))
+          newCell.appendChild(newText)
+        } else {
+          newCell.appendChild(value)
+        }
+      } else {
+        newCell.colSpan = 2
+        newCell.className = 'nopadding'
+        newCell.appendChild(key)
+      }
+      if (ccolor) newCell.style.backgroundColor = ccolor
+      return newRow
+    }
+  }
+}
+
+function createNavItem (text, className = '', onclick = noop, href = '#') {
+  const li = document.createElement('li')
+  const a = document.createElement('a')
+  a.innerText = text
+  a.href = href
+  a.onclick = onclick
+  li.className = className
+  li.appendChild(a)
+  return li
+}
+
+function displayCategory (bench, container) {
+  container.innerHTML = ''
+  const info = createView()
+  info.addRow('cpu model', bench.cpuinfo[0]['model name'])
+  info.addRow('cache size', bench.cpuinfo[0]['cache size'])
+  info.addRow('cores', bench.cpuinfo[0]['cpu cores'])
+  for (const k of Object.keys(bench.config.config)) {
+    if (k === 'versions') continue
+    info.addRow(k, bench.config.config[k])
+  }
+  const { versions } = bench.config.config
+  for (const k of Object.keys(versions)) {
+    info.addRow(k, versions[k])
+  }
+  container.appendChild(info.table)
+}
+
+function displaySuite (results, suite, container) {
+  container.innerHTML = ''
+  const result = results[suite]
+  const names = Object.keys(result)
+  const krps = names.map(name => {
+    const data = result[name]
+      .filter(v => (!v.strace && !v.flame))
+      .map(v => v.bench.rate)
+    return { name: getRuntimeFromName(name), data }
+  }).filter(applyFilters)
+  const krpspc = names.map(name => {
+    const data = result[name]
+      .filter(v => (!v.strace && !v.flame))
+      .map(v => v.bench.ratepercore)
+    return { name: getRuntimeFromName(name), data }
+  }).filter(applyFilters)
+  const mem = names.map(name => {
+    const data = result[name]
+      .filter(v => (!v.strace && !v.flame))
+      .map(v => v.httpd.usage.memory)
+    return { name: getRuntimeFromName(name), data }
+  }).filter(applyFilters)
+  const cpu = names.map(name => {
+    const data = result[name]
+      .filter(v => (!v.strace && !v.flame))
+      .map(v => v.httpd.usage.cpu)
+    return { name: getRuntimeFromName(name), data }
+  }).filter(applyFilters)
+  const wcpu = names.map(name => {
+    const data = result[name]
+      .filter(v => (!v.strace && !v.flame))
+      .map(v => (v.wrk || v.wsb).usage.cpu)
+    return { name: getRuntimeFromName(name), data }
+  }).filter(applyFilters)
+  const cpuMax = Math.max(...cpu.map(v => v.data)
+    .flat(), ...wcpu.map(v => v.data).flat())
+  const memMax = Math.max(...mem.map(v => v.data).flat())
+  const benches = results.config.suites[suite]
+  createThroughputChart(container, `${suite}-thru`, 
+    `${suite} throughput`, 'rate, higher is better', 
+    krps, 'white', 'thru', 'column')
+  createThroughputChart(container, `${suite}-thru-pc`, 
+    `${suite} throughput per core`, 'rate, higher is better', 
+    krpspc, 'white', 'thru', 'column')
+  createThroughputChart(container, `${suite}-mem`, 
+    `${suite} max memory usage`, 'bytes, lower is better', 
+    mem, 'white', 'thru', 'column')
+  createThroughputChart(container, `${suite}-cpu`, 
+    `${suite} average cpu utilization`, 'cores, lower is better', 
+    cpu, 'white', 'thru', 'column')
+
+  if (results.config.config.type === 'http') {
+    const slatp99 = names.map(name => {
+      const data = result[name]
+        .filter(v => (!v.strace && !v.flame))
+        .map(v => v.bench.percentiles[99])
+      return { name: getRuntimeFromName(name), data }
+    }).filter(applyFilters)
+    const srequests = names.map(name => {
+      const data = result[name]
+        .filter(v => (!v.strace && !v.flame))
+        .map(v => v.bench.requests)
+      return { name: getRuntimeFromName(name), data }
+    }).filter(applyFilters)
+    const sbytes = names.map(name => {
+      const data = result[name]
+        .filter(v => (!v.strace && !v.flame))
+        .map(v => v.bench.bytes)
+      return { name: getRuntimeFromName(name), data }
+    }).filter(applyFilters)
+    const stlat = names.map(name => {
+      return result[name]
+        .filter(v => (!v.strace && !v.flame))
+        .map((v, i) => {
+          const { bench } = v
+          return {
+            name: `${getRuntimeFromName(name)}-${i + 1}`, 
+            data: Object.keys(bench.percentiles).map(k => {
+              return [parseFloat(k), bench.percentiles[k]]
+            })
+          }
+        })
+    }).flat().filter(applyFilters)
+    createThroughputChart(container, `${suite}-requests`, 
+      `${suite} total requests`, 'higher is better', 
+      srequests, 'white', 'thru', 'column')
+    createThroughputChart(container, `${suite}-bytes`, 
+      `${suite} total bytes`, 'higher is better', 
+      sbytes, 'white', 'thru', 'column')
+    createThroughputChart(container, `${suite}-p99`, 
+      `${suite} p99 latency`, 'lower is better', 
+      slatp99, 'white', 'thru', 'column')
+    createLatencyChart(container, `${suite}-lat`, 
+      `${suite} latency percentiles`, 'latency (μs), lower is better', stlat, 
+      'white', 'lat', 'column')
+  }
+  container.appendChild(document.createElement('div'))
+  for (const name of names) {
+    if (filters.includes(getRuntimeFromName(name))) continue
+    const info = createView()
+    const bench = benches.find(b => b.name === name)
+    const color = colors.color(getRuntimeFromName(bench.name))
+    const row = info.addRow(document.createTextNode(bench.name), null, 
+      color, color)
+    row.style.fontSize = '18pt'
+    row.style.textAlign = 'center'
+    //const match = bench.cmdline.match(/\/(.+\.m?jsx?)/)
+    //if (match && match.length > 1) {
+      //const a = document.createElement('a')
+      //a.href = `https://github.com/denoland/benchy/blob/main/${match[1]}`
+      //a.target = '_blank'
+      //a.innerText = `${bench.cmdline.slice(0, 20)}...`
+      //info.addRow('cmdline', a)
+      info.addRow('cmdline', `${bench.cmdline.slice(0, 20)}...`)
+    //}
+    info.addRow('port', bench.port)
+    info.addRow('pinning', bench.pinning)
+    container.appendChild(info.table)
+    const runs = result[name].filter(run => !(run.strace || run.flame))
+    const strace = result[name].find(run => run.strace)
+    const flame = result[name].find(run => run.flame)
+    let r = 1
+    for (const run of runs) {
+      const { bench, httpd } = run
+      const stcpu = httpd.stats.map(v => v.cpu / 100)
+      const stmem = httpd.stats.map(v => v.memory)
+      const wcpu = (run.wrk || run.wsb).stats.map(v => v.cpu / 100)
+      info.addRow('run', r, '#c0c0c0', '#c0c0c0')
+      info.addRow('rate', bench.rate)
+      info.addRow('rate per core', bench.ratepercore)
+      if (results.config.config.type === 'http') {
+        info.addRow('time', bench.time)
+        info.addRow('requests', bench.requests)
+        info.addRow('bytes', bench.bytes)
+        info.addRow('payload', Math.floor(bench.bytes / bench.requests))
+        for (const t of Object.keys(bench.threads)) {
+          for (const s of Object.keys(bench.threads[t])) {
+            info.addRow(`thread ${t}: ${s}`, bench.threads[t][s])
+          }
+        }
+        info.addRow('latency', '', '#f0f0f0', '#f0f0f0')
+        info.addRow('avg', bench.latency.average)
+        info.addRow('max', bench.latency.max)
+        info.addRow('stdev', bench.latency.stdev)
+        info.addRow('variance', bench.latency.variance)
+        const maxlatency = Math.max(...Object.keys(bench.percentiles)
+          .map(k => Number(bench.percentiles[k])))
+        for (const p of Object.keys(bench.percentiles)) {
+          const row = info.addRow(`p${p.replace('.', '')}`, '')
+          const pc = (bench.percentiles[p] / maxlatency) * 100
+          row.childNodes[1].innerHTML = gaugeHtml(pc, bench.percentiles[p])
+        }
+      }
+      const runtimeName = getRuntimeFromName(name)
+      info.addRow('resource usage', '', '#f0f0f0', '#f0f0f0')
+      info.addRow('server cpu', httpd.usage.cpu)
+      info.addRow('', sparkline(stcpu, cpuMax, 
+        colors.color(runtimeName), 
+        colors.color(runtimeName)))
+      info.addRow('server rss', httpd.usage.memory)
+      info.addRow('', sparkline(stmem, memMax, 
+        colors.color(runtimeName), 
+        colors.color(runtimeName)))
+      info.addRow('loader cpu', (run.wrk || run.wsb).usage.cpu)
+      info.addRow('', sparkline(wcpu, cpuMax, 
+        colors.color('wrk'), colors.color ('wrk')))
+      r++
+    }
+    if (flame) {
+      info.addRow('flamegraph', '', '#c0c0c0', '#c0c0c0')
+      const a = document.createElement('a')
+      const img = document.createElement('img')
+      img.style.width = '100%'
+      img.style.height = '320px'
+      a.href = img.src = `/${current}/${flame.flame}`
+      a.target = '_blank'
+      a.appendChild(img)
+      info.addRow(a, null ,'#c0c0c0')
+    }
+    if (strace) {
+      info.addRow('strace', '', '#c0c0c0', '#c0c0c0')
+      const { totals, records } = strace.strace
+      info.addRow('calls', totals.calls)
+      info.addRow('seconds', totals.seconds)
+      info.addRow('errors', totals.errors)
+      info.addRow('μs/call', totals.usecs)
+      const cols = Object.keys(records[0])
+      const tbl = createTable(cols)
+      for (const record of records) {
+        tbl.addRow(cols.map(col => record[col]))
+      }
+      info.addRow(tbl.table, null, '#f0f0f0', '#f0f0f0')
+    }
+  }
+}
+
+function getRuntimeFromName (fullName) {
+  const [name, canary] = fullName.split('-')
+  if (canary === 'canary') {
+    frameworks[`${name}-${canary}`] = true
+    return `${name}-${canary}`
+  }
+  frameworks[name] = true
+  return name
+}
+
+function toggleTab (tab) {
+  if (currentTab) currentTab.classList.remove('selected')
+  currentTab = tab
+  tab.classList.add('selected')
+}
+
+function displayNav (benches, main) {
+  const nav = document.createElement('nav')
+  const ul = document.createElement('ul')
+  nav.appendChild(ul)
+  const container = document.createElement('div')
+  container.className = 'container'
+  let refresh
+  for (const bench of benches) {
+    const { name, id, timestamp } = bench.config.config
+    const onCategoryClick = () => {
+      displayCategory(bench, container)
+      selectedCategory = name
+      selectedSuite = ''
+      toggleTab(catTab)
+    }
+    const catTab = createNavItem(`${name}.${current}`, 'category', onCategoryClick)
+    ul.appendChild(catTab)
+    if (selectedCategory === name || (selectedCategory === '' && selectedSuite === '')) refresh = onCategoryClick
+    const suites = Object.keys(bench)
+      .filter(k => (k !== 'cpuinfo' && k !== 'config'))
+    for (const suite of suites) {
+      const id = `${bench.config.config.name}.${suite}`
+      const onSuiteClick = () => {
+        displaySuite(bench, suite, container)
+        selectedSuite = id
+        selectedCategory = ''
+        toggleTab(tab)
+        displayFilters()
+      }
+      const tab = createNavItem(suite, 'suite', onSuiteClick)
+      ul.appendChild(tab)
+      if (selectedSuite === id) refresh = onSuiteClick
+    }
+  }
+  main.appendChild(nav)
+  main.appendChild(container)
+  refresh()
+}
+
+function displayFilters () {
+  const control = document.getElementById('control')
+  control.innerHTML = ''
+  const names = Object.keys(frameworks)
+  for (const name of names) {
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    if (filters.includes(name)) input.checked = true
+    input.id = name
+    input.value = name
+    input.onclick = () => {
+      console.log(name)
+      console.log(input.checked)
+      if (input.checked) {
+        if (!filters.includes(name)) filters.push(name)
+      } else {
+       if (filters.includes(name)) filters.splice(filters.indexOf(name), 1)
+      }
+      loadCurrent().catch(err => errorHandler)
+    }
+    const label = document.createElement('label')
+    label.htmlFor = name
+    label.appendChild(document.createTextNode(name))
+    control.appendChild(input)
+    control.appendChild(label)
+  }
+}
+
+function getBenchmark (name) {
+	return fetch(`/${current}/${name}.json`)
+		.then(response => response.json())
+    .then(results => {
+      results.config.config.id = current
+      results.config.config.name = name
+      return results
+    })
+}
+
+async function loadCurrent () {
+  const [http] = await Promise.all([
+    getBenchmark('http')
+  ])
+  main.innerHTML = ""
+  displayNav([http], main)
+/*
+  const [http, websocket] = await Promise.all([
+    getBenchmark('http'), getBenchmark('websocket')
+  ])
+  main.innerHTML = ""
+  displayNav([http, websocket], main)
+*/
+}
+
+function moveTo (num) {
+  current = num
+  loadCurrent().catch(errorHandler)
+}
+
+function movePrevious () {
+  if (current === 1) {
+    current = max
+  } else {
+    current--
+  }
+  loadCurrent().catch(errorHandler)
+}
+
+function moveNext () {
+  if (current === max) {
+    current = 1
+  } else {
+    current++
+  }
+  loadCurrent().catch(err => errorHandler)
+}
+
+function onLoad () {
+  loadCurrent().catch(errorHandler)
+  document.body.addEventListener('keydown', event => {
+    if (event.key === 'ArrowLeft' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault()
+      movePrevious()
+      return
+    }
+    if (event.key === 'ArrowRight' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault()
+      moveNext()
+      return
+    }
+  })
+}
+
+function errorHandler (err) {
+  console.error(err)  
+}
+
+</script>
+</head>
+<body onload="onLoad()">
+<div id="control">
+</div>
+<div id="main">
+</div>
+</body>
+</html>
