@@ -5,10 +5,10 @@ import { RequestParser } from 'lib/pico.js'
 import { mem, cputime, colors } from '../lib/bench.mjs'
 import * as html from './lib/html.mjs'
 
-const { assert, utf8Length, core, getenv, ptr, uft8_encode_into } = lo
+const { assert, core, getenv, ptr, utf8_encode_into_ptr } = lo
 const { fcntl, O_NONBLOCK, F_SETFL, read_file } = core
 const { 
-  socket, bind, listen, accept, close, setsockopt, recv, send2
+  socket, bind, listen, accept, close, setsockopt, send2, recv2
 } = net
 const {
   SOCK_STREAM, AF_INET, SOMAXCONN, SO_REUSEPORT, SOL_SOCKET, SOCKADDR_LEN
@@ -45,16 +45,15 @@ function close_socket (fd) {
 }
 
 function on_socket_event (fd) {
-  const socket = sockets.get(fd)
-  const { parser } = socket
-  const bytes = recv(fd, parser.rb, BUFSIZE, 0)
+  const { parser } = sockets.get(fd)
+  const bytes = recv2(fd, parser.rb.ptr, BUFSIZE, 0)
   if (bytes > 0) {
     const parsed = parser.parse(bytes)
     if (parsed > 0) {
-      const data_text = data_fn.call(data)
-      send2(fd, send_buf.ptr, uft8_encode_into(
-        `${status_line()}${htmlx}Content-Length: ${utf8Length(data_text)}\r\n\r\n${data_text}`, 
-        send_buf), 0)
+      const body_size = utf8_encode_into_ptr(data_fn.call(data), body_start)
+      const pre = `${status_line()}${htmlx}Content-Length: ${body_size}\r\n\r\n`
+      const addr = body_start - pre.length
+      send2(fd, addr, utf8_encode_into_ptr(pre, addr) + body_size)
       rps++
       return
     }
@@ -91,7 +90,7 @@ function start_server (addr, port) {
   const fd = socket(AF_INET, SOCK_STREAM, 0)
   assert(fd > 2)
   assert(fcntl(fd, F_SETFL, O_NONBLOCK) === 0)
-//  assert(!setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, net.on, 32))
+  assert(!setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, net.on, 32))
   assert(bind(fd, sockaddr_in(addr, port), SOCKADDR_LEN) === 0)
   assert(listen(fd, SOMAXCONN) === 0)
   assert(loop.add(fd, on_socket_connect, Loop.Readable, on_accept_error) === 0)
@@ -103,10 +102,15 @@ let conn = 0
 const rows = parseInt(lo.args[2] || '10', 10)
 const decoder = new TextDecoder()
 const encoder = new TextEncoder()
+const escape_html = false
 const data = JSON.parse(decoder.decode(read_file('data.json'))).slice(0, rows)
-const data_fn = html.compile(encoder.encode(`<!DOCTYPE html><html lang=en><body><table>{{#each this}}<tr><td>{{id}}</td><td>{{name}}</td></tr>{{/each}}</table></body></html>`), 'data', 'data', { rawStrings: false }).call
+const data_fn = html.compile(encoder.encode(`<!DOCTYPE html><html lang=en><body><table>{{#each this}}<tr><td>{{id}}</td><td>{{name}}</td></tr>{{/each}}</table></body></html>`), 'data', 'data', { rawStrings: false, escape: escape_html }).call
 const send_buf = ptr(new Uint8Array(1 * 1024 * 1024))
-const sockets = new Map()
+const send_ptr = send_buf.ptr
+const body_start = send_ptr + 4096
+const _sockets = new Array(65536)
+_sockets.fill(undefined)
+const sockets = { get: fd => _sockets[fd], set: (fd, sock) => _sockets[fd] = sock, delete: fd => _sockets[fd] = null, has: fd => _sockets[fd] }
 const BUFSIZE = 65536
 const loop = new Loop()
 let htmlx = 

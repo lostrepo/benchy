@@ -4,7 +4,8 @@ import { compile } from './lib/html.mjs'
 import foo from './data.json' assert { type: 'json' };
 
 const encoder = new TextEncoder()
-const Template = compile(encoder.encode(`<!DOCTYPE html><html lang=en><body><table>{{#each this}}<tr><td>{{id}}</td><td>{{name}}</td></tr>{{/each}}</table></body></html>`), 'data', 'data', { rawStrings: false }).call
+const escape_html = false
+const Template = compile(encoder.encode(`<!DOCTYPE html><html lang=en><body><table>{{#each this}}<tr><td>{{id}}</td><td>{{name}}</td></tr>{{/each}}</table></body></html>`), 'data', 'data', { rawStrings: false, escape: escape_html }).call
 
 const rows = parseInt(process.argv[2] || '10', 10)
 const data = foo.slice(0, rows)
