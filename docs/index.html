@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
 <title>benchy</title>
@@ -210,19 +210,19 @@ const colors = new Colors()
 
 function gaugeHtml (percent, value) {
   return `<div style="width: 100%; color: black;">
-  <div style="padding: 0px; background-color: #fdbf6f; text-align: 
+  <div style="padding: 0px; background-color: #fdbf6f; text-align:
   right; font-weight: bold; width: ${Math.ceil(percent)}%">
   ${value}
   </div>
   </div>`
 }
 
-function sparkline (data, max = stats.max(data), stroke = '#03a9f4', 
+function sparkline (data, max = stats.max(data), stroke = '#03a9f4',
   fill = '#b3e5fc') {
   const hide = { show: false }
-  const opts = { 
-    width: 250, height: 64, cursor: hide, select: hide, legend: hide, 
-    scales: { x: { time: false }, y: { time: false, range: [0, 1] } }, 
+  const opts = {
+    width: 250, height: 64, cursor: hide, select: hide, legend: hide,
+    scales: { x: { time: false }, y: { time: false, range: [0, 1] } },
     axes: [ hide, hide ], series: [ {}, { stroke, fill }]
   }
   const d = [[], []]
@@ -234,7 +234,7 @@ function sparkline (data, max = stats.max(data), stroke = '#03a9f4',
   return u.root.querySelector('canvas')
 }
 
-function createThroughputChart(container, name, title, subtitle, results, 
+function createThroughputChart(container, name, title, subtitle, results,
   bgcolor = 'white', className = 'chart', type = 'bar') {
   const div = document.createElement('div')
   div.className = className
@@ -289,7 +289,7 @@ function createThroughputChart(container, name, title, subtitle, results,
   Highcharts.chart(name, config)
 }
 
-function createLatencyChart(container, name, title, subtitle, results, 
+function createLatencyChart(container, name, title, subtitle, results,
   bgcolor = 'white', className = 'chart', type = 'bar') {
   const div = document.createElement('div')
   div.className = className
@@ -387,8 +387,8 @@ function createView () {
         if (value === null || value === undefined) {
           newText = document.createTextNode('<null>')
           newCell.appendChild(newText)
-        } else if (value.constructor.name === 'String' || 
-          value.constructor.name === 'Number' || 
+        } else if (value.constructor.name === 'String' ||
+          value.constructor.name === 'Number' ||
           value.constructor.name === 'Boolean') {
           newText = document.createTextNode(value)
           newCell.appendChild(newText)
@@ -475,17 +475,17 @@ function displaySuite (results, suite, container) {
     .flat(), ...wcpu.map(v => v.data).flat())
   const memMax = Math.max(...mem.map(v => v.data).flat())
   const benches = results.config.suites[suite]
-  createThroughputChart(container, `${suite}-thru`, 
-    `${suite} throughput`, 'rate, higher is better', 
+  createThroughputChart(container, `${suite}-thru`,
+    `${suite} throughput`, 'rate, higher is better',
     krps, 'white', 'thru', 'column')
-  createThroughputChart(container, `${suite}-thru-pc`, 
-    `${suite} throughput per core`, 'rate, higher is better', 
+  createThroughputChart(container, `${suite}-thru-pc`,
+    `${suite} throughput per core`, 'rate, higher is better',
     krpspc, 'white', 'thru', 'column')
-  createThroughputChart(container, `${suite}-mem`, 
-    `${suite} max memory usage`, 'bytes, lower is better', 
+  createThroughputChart(container, `${suite}-mem`,
+    `${suite} max memory usage`, 'bytes, lower is better',
     mem, 'white', 'thru', 'column')
-  createThroughputChart(container, `${suite}-cpu`, 
-    `${suite} average cpu utilization`, 'cores, lower is better', 
+  createThroughputChart(container, `${suite}-cpu`,
+    `${suite} average cpu utilization`, 'cores, lower is better',
     cpu, 'white', 'thru', 'column')
 
   if (results.config.config.type === 'http') {
@@ -513,24 +513,24 @@ function displaySuite (results, suite, container) {
         .map((v, i) => {
           const { bench } = v
           return {
-            name: `${getRuntimeFromName(name)}-${i + 1}`, 
+            name: `${getRuntimeFromName(name)}-${i + 1}`,
             data: Object.keys(bench.percentiles).map(k => {
               return [parseFloat(k), bench.percentiles[k]]
             })
           }
         })
     }).flat().filter(applyFilters)
-    createThroughputChart(container, `${suite}-requests`, 
-      `${suite} total requests`, 'higher is better', 
+    createThroughputChart(container, `${suite}-requests`,
+      `${suite} total requests`, 'higher is better',
       srequests, 'white', 'thru', 'column')
-    createThroughputChart(container, `${suite}-bytes`, 
-      `${suite} total bytes`, 'higher is better', 
+    createThroughputChart(container, `${suite}-bytes`,
+      `${suite} total bytes`, 'higher is better',
       sbytes, 'white', 'thru', 'column')
-    createThroughputChart(container, `${suite}-p99`, 
-      `${suite} p99 latency`, 'lower is better', 
+    createThroughputChart(container, `${suite}-p99`,
+      `${suite} p99 latency`, 'lower is better',
       slatp99, 'white', 'thru', 'column')
-    createLatencyChart(container, `${suite}-lat`, 
-      `${suite} latency percentiles`, 'latency (μs), lower is better', stlat, 
+    createLatencyChart(container, `${suite}-lat`,
+      `${suite} latency percentiles`, 'latency (μs), lower is better', stlat,
       'white', 'lat', 'column')
   }
   container.appendChild(document.createElement('div'))
@@ -539,7 +539,7 @@ function displaySuite (results, suite, container) {
     const info = createView()
     const bench = benches.find(b => b.name === name)
     const color = colors.color(getRuntimeFromName(bench.name))
-    const row = info.addRow(document.createTextNode(bench.name), null, 
+    const row = info.addRow(document.createTextNode(bench.name), null,
       color, color)
     row.style.fontSize = '18pt'
     row.style.textAlign = 'center'
@@ -593,15 +593,15 @@ function displaySuite (results, suite, container) {
       const runtimeName = getRuntimeFromName(name)
       info.addRow('resource usage', '', '#f0f0f0', '#f0f0f0')
       info.addRow('server cpu', httpd.usage.cpu)
-      info.addRow('', sparkline(stcpu, cpuMax, 
-        colors.color(runtimeName), 
+      info.addRow('', sparkline(stcpu, cpuMax,
+        colors.color(runtimeName),
         colors.color(runtimeName)))
       info.addRow('server rss', httpd.usage.memory)
-      info.addRow('', sparkline(stmem, memMax, 
-        colors.color(runtimeName), 
+      info.addRow('', sparkline(stmem, memMax,
+        colors.color(runtimeName),
         colors.color(runtimeName)))
       info.addRow('loader cpu', (run.wrk || run.wsb).usage.cpu)
-      info.addRow('', sparkline(wcpu, cpuMax, 
+      info.addRow('', sparkline(wcpu, cpuMax,
         colors.color('wrk'), colors.color ('wrk')))
       r++
     }
@@ -611,7 +611,9 @@ function displaySuite (results, suite, container) {
       const img = document.createElement('img')
       img.style.width = '100%'
       img.style.height = '320px'
-      a.href = img.src = `${current}/${flame.flame}`
+      a.href = img.src = /^file/.test(location.protocol)
+        ? `../${flame.flame}`
+        : `${current}/${flame.flame}`
       a.target = '_blank'
       a.appendChild(img)
       info.addRow(a, null ,'#c0c0c0')
@@ -717,6 +719,49 @@ function displayFilters () {
 }
 
 function getBenchmark (name) {
+  if (/^file/.test(location.protocol)) {
+    const inputId = 'file_input';
+    const labelId = 'file_input_label';
+    const input = document.getElementById(inputId) ||
+      document.createElement('input');
+    input.id = inputId;
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.style = 'display:none !important;';
+    const label = document.getElementById(labelId) ||
+      document.createElement('label');
+    label.id = labelId;
+    label.setAttribute('for', input.id);
+    label.textContent = `Click to select "${name}.json" file`;
+    label.style =
+      'position:fixed;z-index:999;top:50%;left:50%;width:20em;max-width:100%;padding:16px 8px;'
+      + 'font-size:32px;transform:translate(-50%,-50%);border:solid #ccc 2px;border-radius:8px;'
+      + 'text-align:center;cursor:pointer;color:#0aa;background:rgba(255,255,255,.5);user-select:none;';
+    document.body.appendChild(input);
+    document.body.appendChild(label);
+
+    const cleanup = () => {
+      document.body.removeChild(input);
+      document.body.removeChild(label);
+    };
+
+    return new Promise(function (resolve) {
+      input.onchange = () => {
+        const fileReader = new FileReader();
+        fileReader.onload = function () {
+          const results = JSON.parse(fileReader.result);
+          results.config.config.id = current;
+          results.config.config.name = name;
+          cleanup();
+          resolve(results);
+        };
+        fileReader.readAsText(input.files[0]);
+      };
+    }).catch((error) => {
+      cleanup();
+      throw error;
+    });
+  }
 	return fetch(`${current}/${name}.json`)
 		.then(response => response.json())
     .then(results => {
@@ -781,7 +826,7 @@ function onLoad () {
 }
 
 function errorHandler (err) {
-  console.error(err)  
+  console.error(err)
 }
 
 </script>
