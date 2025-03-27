@@ -1,6 +1,6 @@
 import { mem, cputime, colors } from '../lib/bench.mjs'
 import { compile } from './lib/html.mjs'
-import foo from './data.json' assert { type: 'json' };
+import foo from './data.json' with { type: "json" };
 
 const encoder = new TextEncoder()
 const escape_html = false
@@ -21,7 +21,7 @@ Deno.serve({
   port: 4000,
 }, () => {
   rps++
-  return new Response(Template.call(data), opts) 
+  return new Response(Template.call(data), opts)
 })
 
 setInterval(() => {
