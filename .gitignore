@@ -2,3 +2,6 @@ scratch
 perf.data*
 node_modules
 package-lock.json
+/*.svg
+**/bun.lock
+http.json
