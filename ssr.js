@@ -4,16 +4,16 @@ const config = {
   runs: 3, // number of runs for each framework
   warmups: 1, // number of warmup runs
   warmupDuration: 30, // duration of warmup runs
-  threads: 2, // wrk threads
+  threads: 3, // wrk threads
   duration: 30, // wrk duration
-  conn: 8, // wrk connections
+  conn: 256, // wrk connections
   quiet: false, // turn off terminal output
   strace: true, // run bench with strace and capture output (linux only)
   flame: true, // run bench with flamegraph and output to {name}.svg
   nice: '20'
 }
 
-const pinning = ['1', '6,7']
+const pinning = ['2', '5,6,7']
 
 const ssr = [
   {
@@ -109,6 +109,30 @@ const ssr = [
     cwd: 'ssr',
     cmdline: 'lo ssr-lo.js 1000',
     port: 6000,
+    pinning: pinning, // optional, only works on linux - needs to be tuned for target machine
+//    off: true
+  },
+  {
+    name: 'lo2-ssr-1',
+    cwd: 'ssr',
+    cmdline: 'lo ssr-lo2.js 1',
+    port: 22801,
+    pinning: pinning, // optional, only works on linux - needs to be tuned for target machine
+//    off: true
+  },
+  {
+    name: 'lo2-ssr-10',
+    cwd: 'ssr',
+    cmdline: 'lo ssr-lo2.js 10',
+    port: 22801,
+    pinning: pinning, // optional, only works on linux - needs to be tuned for target machine
+//    off: true
+  },
+  {
+    name: 'lo2-ssr-1000',
+    cwd: 'ssr',
+    cmdline: 'lo ssr-lo2.js 1000',
+    port: 22801,
     pinning: pinning, // optional, only works on linux - needs to be tuned for target machine
 //    off: true
   },
